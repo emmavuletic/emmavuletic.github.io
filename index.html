@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portfolio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Dancing+Script:wght@500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0f;
+      --ball-size: clamp(140px, 28vmin, 220px);
+      --enter-color: rgba(255,255,255,0.35);
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    /* ── Ball / bubble ── */
+    #ball {
+      position: fixed;
+      width: var(--ball-size);
+      height: var(--ball-size);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 50%, transparent 55%, rgba(180,220,255,0.18) 72%, rgba(220,180,255,0.14) 85%, rgba(180,255,220,0.10) 100%),
+        radial-gradient(circle at 50% 50%, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 60%, transparent 100%);
+      border: 1px solid rgba(255,255,255,0.18);
+      box-shadow:
+        0 0 40px rgba(200,220,255,0.10),
+        inset 0 1px 0 rgba(255,255,255,0.35),
+        inset 0 -1px 0 rgba(255,255,255,0.08);
+      cursor: pointer;
+      touch-action: none;
+      will-change: left, top;
+      transition: box-shadow 0.2s ease;
+      overflow: hidden;
+    }
+    #ball::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: radial-gradient(ellipse 55% 38% at 32% 25%,
+        rgba(255,255,255,0.38) 0%,
+        rgba(255,255,255,0.08) 55%,
+        transparent 100%);
+    }
+    #ball::after {
+      content: "";
+      position: absolute;
+      top: 18%; left: 24%;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow:
+        0 0 4px 2px rgba(255,255,255,0.9),
+        0 0 10px 4px rgba(255,255,255,0.4),
+        0 -7px 3px -2px rgba(255,255,255,0.55),
+        0  7px 3px -2px rgba(255,255,255,0.3),
+        -7px 0 3px -2px rgba(255,255,255,0.55),
+         7px 0 3px -2px rgba(255,255,255,0.3);
+      animation: glimmer 3.4s ease-in-out infinite;
+    }
+    @keyframes glimmer {
+      0%, 100% { opacity: 1;    transform: scale(1);   }
+      45%       { opacity: 0.3; transform: scale(0.5); }
+      55%       { opacity: 0.3; transform: scale(0.5); }
+    }
+    #ball:hover, #ball:focus-visible {
+      box-shadow:
+        0 0 60px rgba(200,220,255,0.22),
+        inset 0 1px 0 rgba(255,255,255,0.45),
+        inset 0 -1px 0 rgba(255,255,255,0.12);
+      outline: none;
+    }
+
+    /* ── Enter link (removed) ── */
+    #enter {
+      display: none;
+      text-decoration: none;
+      border-bottom: 1px solid currentColor;
+      padding-bottom: 1px;
+      transition: color 0.2s;
+      z-index: 10;
+      cursor: pointer;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      font-family: system-ui, sans-serif;
+    }
+    #enter:hover, #enter:focus-visible {
+      color: rgba(255,255,255,0.75);
+      outline: none;
+    }
+
+    /* ── Sound toggle ── */
+    #sound-btn {
+      position: fixed;
+      top: 20px; right: 20px;
+      background: #ffe000;
+      border: none;
+      border-radius: 50%;
+      width: 52px; height: 52px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #111;
+      transition: background 0.2s, transform 0.15s;
+      z-index: 200;
+      padding: 0;
+      box-shadow: 0 0 22px rgba(255,224,0,0.7);
+    }
+    #sound-btn:hover { background: #ffed4a; transform: scale(1.08); }
+    #sound-btn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+    #sound-btn svg { width: 22px; height: 22px; }
+
+    /* ══════════════════════════════════════════
+       ABOUT OVERLAY
+    ══════════════════════════════════════════ */
+    #about-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 10, 12, 0.93);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 150;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.45s ease;
+    }
+    #about-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    /* ── Outer card: clips the two sliding panels ── */
+    #about-card {
+      max-width: 760px;
+      width: 90%;
+      max-height: 88vh;
+      overflow: hidden;
+      position: relative;
+      transform: translateY(12px);
+      transition: transform 0.45s ease;
+      font-family: 'Libre Baskerville', Georgia, serif;
+      font-size: 15px;
+      line-height: 1.8;
+      color: rgba(255,255,255,0.82);
+    }
+    #about-overlay.open #about-card { transform: translateY(0); }
+
+    /* ── Sliding track: holds both panels side by side ── */
+    #about-panels {
+      display: flex;
+      width: 200%;
+      transition: transform 0.42s cubic-bezier(0.4,0,0.2,1);
+    }
+    #about-panels.show-photos { transform: translateX(-50%); }
+
+    /* ── Each panel scrolls independently ── */
+    .about-panel {
+      width: 50%;
+      max-height: 88vh;
+      overflow-y: auto;
+      padding: 52px 48px 56px;
+      scrollbar-width: none;
+      box-sizing: border-box;
+    }
+    .about-panel::-webkit-scrollbar { display: none; }
+
+    /* ── Typography ── */
+    .about-panel p { margin-bottom: 18px; color: rgba(255,255,255,0.72); }
+    .about-panel p:last-child { margin-bottom: 0; }
+    .about-panel a { color: rgba(255,255,255,0.75); text-decoration: underline; text-underline-offset: 3px; }
+    .about-panel a:hover { color: #fff; }
+    .about-panel em { font-style: italic; color: rgba(255,255,255,0.5); }
+
+    .about-rule {
+      width: 32px; height: 1px;
+      background: rgba(255,255,255,0.2);
+      margin: 14px 0;
+    }
+
+    /* ── Close button ── */
+    #about-close {
+      position: absolute;
+      top: 20px; right: 20px;
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.3);
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      padding: 4px;
+      transition: color 0.2s;
+      font-family: system-ui, sans-serif;
+      z-index: 10;
+    }
+    #about-close:hover { color: rgba(255,255,255,0.8); }
+
+    /* ── "my work" ball beside the paragraph ── */
+    .work-row {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .work-row p { margin-bottom: 0; flex: 1; }
+
+    #work-ball {
+      flex-shrink: 0;
+      width: 90px;
+      height: 110px;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+      user-select: none;
+      display: block;
+    }
+    #work-ball:hover  { transform: scale(1.06); }
+    #work-ball:active { transform: scale(0.95); }
+    #work-ball svg    { width: 100%; height: 100%; display: block; overflow: visible; }
+
+    @keyframes disco-spin   { to { transform: rotate(360deg);  } }
+    @keyframes disco-spin-r { to { transform: rotate(-360deg); } }
+    .disco-a  {
+      transform-box: fill-box; transform-origin: center;
+      animation: disco-spin 10s linear infinite;
+    }
+    .disco-b  {
+      transform-box: fill-box; transform-origin: center;
+      animation: disco-spin-r 7s linear infinite;
+    }
+
+    /* ── Carousel ── */
+    #photos-panel h2 {
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 32px;
+      margin-top: 8px;
+    }
+    /* ── Carousel ── */
+    .carousel {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .car-frame {
+      flex: 1;
+      aspect-ratio: 16/9;
+      background: #000;
+      border: 1px solid rgba(255,255,255,0.10);
+      overflow: hidden;
+      position: relative;
+    }
+    .car-frame img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .car-btn {
+      flex-shrink: 0;
+      background: none;
+      border: 1px solid rgba(255,255,255,0.22);
+      color: rgba(255,255,255,0.65);
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: color 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+    }
+    .car-btn:hover { color: #fff; border-color: rgba(255,255,255,0.6); }
+    .car-counter {
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: rgba(255,255,255,0.3);
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .photo-caption {
+      font-size: 11px;
+      color: rgba(255,255,255,0.3);
+      margin-top: 5px;
+      font-style: italic;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #ball {
+        position: fixed !important;
+        top: 50% !important; left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        animation: none !important;
+      }
+      #about-overlay, #about-card, #about-panels { transition: none !important; }
+    }
+
+    @media (max-width: 500px) {
+      .about-panel { padding: 44px 24px 48px; font-size: 14px; }
+      .car-btn { width: 28px; height: 28px; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════ OVERLAY ═══════════ -->
+  <div id="about-overlay" role="dialog" aria-modal="true" aria-label="About">
+    <div id="about-card">
+
+      <button id="about-close" aria-label="Close">&#x2715;</button>
+
+      <div id="about-panels">
+
+        <!-- ── PANEL 1: Bio ── -->
+        <div class="about-panel" id="bio-panel">
+
+          <p>Welcome to my world.</p>
+
+          <p>
+            I'm <a href="https://www.linkedin.com/in/emmavuletic/" target="_blank" rel="noopener">Emma</a>,
+            a storyteller, journalist and content strategist working across technology and public services.
+            I am interested in the ideas shaping contemporary life, particularly the way they affect under-represented groups.
+            My work sits at the intersection of <a href="https://www.smh.com.au/money/the-politics-of-shopping-are-consumer-boycotts-effective-20161128-gsywwm.html" target="_blank" rel="noopener">journalism</a>, <a href="https://board.fastcompany.com/fast-company-executive-board/why-rapid-growth-for-a-start-up-isnt-always-good/90880578/" target="_blank" rel="noopener">editorial</a>, communications, <a href="https://www.youtube.com/watch?v=kQPP0_1oB90&t=22s" target="_blank" rel="noopener">narrative storytelling</a> and <a href="https://www.thecopyguild.com/blog/naturalaiagents" target="_blank" rel="noopener">emerging technology</a>.
+          </p>
+
+          <div class="work-row">
+            <p>
+              I find the human stories behind complex ideas and turn them into content that builds understanding, earns trust
+              and helps organisations grow. I've written for <em>The Sydney Morning Herald</em>, <em>The Age</em>, MSN,
+              Forbes, Housefolk, Fast Company and <em>The Independent UK</em>, covering culture, work, money, travel and
+              technology, and I've developed film and theatre work with BAFTA- and Oscar-nominated teams.
+            </p>
+            <div id="work-ball" role="button" tabindex="0" aria-label="See my work">
+              <svg viewBox="0 0 90 110" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <defs>
+                  <clipPath id="dc-clip"><circle cx="45" cy="44" r="34"/></clipPath>
+                  <!-- tile pattern — small silver squares with dark gaps -->
+                  <pattern id="dc-tiles" x="0" y="0" width="7" height="6" patternUnits="userSpaceOnUse">
+                    <rect x="0" y="0" width="7" height="6" fill="#1c1c1c"/>
+                    <rect x="0.5" y="0.5" width="5.8" height="4.8" fill="#b0b0b0" rx="0.4"/>
+                  </pattern>
+                  <!-- tile pattern 2 — slightly offset for the rotating layer -->
+                  <pattern id="dc-tiles2" x="3.5" y="3" width="7" height="6" patternUnits="userSpaceOnUse">
+                    <rect x="0" y="0" width="7" height="6" fill="#1c1c1c"/>
+                    <rect x="0.5" y="0.5" width="5.8" height="4.8" fill="#d0d0d0" rx="0.4"/>
+                  </pattern>
+                  <!-- sphere shading: dark around rim, light at top-left -->
+                  <radialGradient id="dc-shade" cx="35%" cy="30%" r="70%">
+                    <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.08"/>
+                    <stop offset="50%"  stop-color="#000000" stop-opacity="0"/>
+                    <stop offset="100%" stop-color="#000000" stop-opacity="0.65"/>
+                  </radialGradient>
+                  <!-- sweeping light blobs -->
+                  <radialGradient id="dc-glow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.9"/>
+                    <stop offset="50%"  stop-color="#ffffff" stop-opacity="0.3"/>
+                    <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+                  </radialGradient>
+                  <radialGradient id="dc-glow2" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%"   stop-color="#ffe8a0" stop-opacity="0.8"/>
+                    <stop offset="100%" stop-color="#ffe8a0" stop-opacity="0"/>
+                  </radialGradient>
+                </defs>
+
+                <!-- hanging wire -->
+                <line x1="45" y1="1" x2="45" y2="10" stroke="#888" stroke-width="1.2" stroke-linecap="round"/>
+                <circle cx="45" cy="10" r="1.5" fill="#aaa"/>
+
+                <!-- dark base -->
+                <circle cx="45" cy="44" r="34" fill="#161616"/>
+
+                <!-- static tile layer -->
+                <rect x="11" y="10" width="68" height="68" fill="url(#dc-tiles)" clip-path="url(#dc-clip)"/>
+
+                <!-- rotating tile layer (the spin illusion) -->
+                <g clip-path="url(#dc-clip)" class="disco-a">
+                  <rect x="11" y="10" width="68" height="68" fill="url(#dc-tiles2)" opacity="0.55"/>
+                </g>
+
+                <!-- primary sweeping white light -->
+                <g clip-path="url(#dc-clip)" class="disco-a">
+                  <ellipse cx="34" cy="30" rx="20" ry="15" fill="url(#dc-glow)" opacity="0.7"/>
+                </g>
+
+                <!-- secondary warm light, counter-rotating -->
+                <g clip-path="url(#dc-clip)" class="disco-b">
+                  <ellipse cx="56" cy="54" rx="14" ry="11" fill="url(#dc-glow2)" opacity="0.5"/>
+                </g>
+
+                <!-- sphere rim shading on top -->
+                <circle cx="45" cy="44" r="34" fill="url(#dc-shade)"/>
+
+                <!-- tiny specular dot -->
+                <circle cx="34" cy="27" r="3.5" fill="white" opacity="0.85"/>
+                <circle cx="34" cy="27" r="1.5" fill="white"/>
+
+                <!-- "work" in cursive along a gentle arc below the ball -->
+                <path id="dc-arc" d="M 14,84 Q 45,98 76,84" fill="none"/>
+                <text font-family="'Dancing Script', cursive" font-size="14"
+                      fill="rgba(255,255,255,0.72)" letter-spacing="0.5">
+                  <textPath href="#dc-arc" startOffset="50%" text-anchor="middle">work</textPath>
+                </text>
+              </svg>
+            </div>
+          </div>
+
+
+          <p>
+            As Head of Content at <a href="https://www.public.digital" target="_blank" rel="noopener">Public Digital</a>, a digital transformation consultancy for the intelligence era, I worked with consultants advising governments and public institutions
+            around the world, translating their expertise into <a href="https://public.digital/insights" target="_blank" rel="noopener">editorial content</a>, <a href="https://www.linkedin.com/company/publicdigital/posts/" target="_blank" rel="noopener">social</a>, <a href="https://public.digital/pd-insights/client-stories/developing-a-scalable-and-sustainable-model-for-doing-digital-in-edo-state-nigeria" target="_blank" rel="noopener">video</a> and storytelling. Much of that work
+            explored what it takes for digital change and AI to improve services in practice. It gave me a sharp appreciation of
+            the distance between a technology promise and the experience of the people using it — and the questions a
+            credible story needs to answer. I am also experienced in working with film crews, providing storytelling strategy and conceptualisation for film.
+          </p>
+
+          <p>
+            Previously, I built the content and social function at Threecolts, a $90 million technology startup. I led
+            <a href="https://www.forbes.com/councils/forbestechcouncil/2023/04/07/five-ways-to-improve-your-acquisition-valuation-for-your-saas-startup/" target="_blank" rel="noopener">funding communications</a>, developed executive <a href="https://www.thecopyguild.com/blog/why-thought-leadership-matters-more-in-the-age-of-ai-and-geo" target="_blank" rel="noopener">thought leadership</a> for US publications and helped make a complex,
+            growing software business understandable to customers and the wider market. I'm comfortable setting editorial
+            direction, building a function from scratch and doing the writing myself.
+          </p>
+
+          <p>
+            I also founded Housefolk, a design-led rental platform, where I built and deployed AI content systems,
+            including a live moderation layer running on Claude. Alongside writing about technology, I have practical
+            experience of putting it to work.
+          </p>
+
+
+          <p>
+            Across journalism, film and content strategy, my approach is consistent: get close to the people doing the
+            work, ask thoughtful questions and find the evidence that makes a story worth believing.
+          </p>
+
+          <p><a href="mailto:evuletic@gmail.com">evuletic@gmail.com</a></p>
+
+
+        </div>
+
+        <!-- ── PANEL 2: Photos ── -->
+        <!-- Add images by replacing src="" with your image paths or URLs -->
+        <div class="about-panel" id="photos-panel">
+          <h2>Work</h2>
+
+          <div class="carousel">
+            <button class="car-btn" id="car-prev" aria-label="Previous">&#8592;</button>
+            <div class="car-frame">
+              <img id="car-img" src="" alt="" />
+            </div>
+            <button class="car-btn" id="car-next" aria-label="Next">&#8594;</button>
+          </div>
+          <div class="car-counter" id="car-counter">1 / 25</div>
+
+        </div>
+
+      </div><!-- /about-panels -->
+    </div><!-- /about-card -->
+  </div>
+  <!-- ══════════════════════════ -->
+
+  <div id="ball"
+     role="button"
+     tabindex="0"
+     aria-label="Open about"
+  ></div>
+
+  <button id="sound-btn" aria-label="Toggle sound" title="Toggle sound">
+    <svg id="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+    </svg>
+    <svg id="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+      <line x1="23" y1="9" x2="17" y2="15"/>
+      <line x1="17" y1="9" x2="23" y2="15"/>
+    </svg>
+  </button>
+
+  <script>
+    /* ══════════════════════════════════════════
+       ABOUT OVERLAY
+    ══════════════════════════════════════════ */
+    const overlay    = document.getElementById("about-overlay");
+    const closeBtn   = document.getElementById("about-close");
+    const panels     = document.getElementById("about-panels");
+    const workBallEl = document.getElementById("work-ball");
+    const aboutCard  = document.getElementById("about-card");
+
+    function openAbout()  { overlay.classList.add("open"); }
+    function closeAbout() {
+      overlay.classList.remove("open");
+      panels.classList.remove("show-photos");
+    }
+
+    document.getElementById("ball").addEventListener("click", openAbout);
+    document.getElementById("ball").addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openAbout(); }
+    });
+    closeBtn.addEventListener("click", closeAbout);
+    overlay.addEventListener("click", e => { if (e.target === overlay) closeAbout(); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape") closeAbout(); });
+
+    /* ── Bouncing work ball ── */
+    workBallEl.addEventListener("click", () => panels.classList.toggle("show-photos"));
+    workBallEl.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); workBallEl.click(); }
+    });
+
+
+    /* ── Carousel ── */
+    const CAR_PHOTOS = [
+      "Screenshot 2026-10-13 at 18.21.40.png",
+      "Screenshot 2026-10-21 at 12.25.56.png",
+      "Screenshot 2026-10-25 at 09.55.11.png",
+      "Screenshot 2026-11-24 at 14.37.11.png",
+      "Screenshot 2026-11-24 at 14.37.26.png",
+      "Screenshot 2026-11-24 at 14.37.37.png",
+      "Screenshot 2026-11-24 at 14.37.42.png",
+      "Screenshot 2026-11-24 at 14.37.48.png",
+      "Screenshot 2026-11-24 at 14.38.05.png",
+      "Screenshot 2026-11-24 at 14.38.13.png",
+      "Screenshot 2026-11-24 at 14.38.26.png",
+      "Screenshot 2026-11-24 at 14.38.32.png",
+      "Screenshot 2026-11-24 at 14.38.38.png",
+      "Screenshot 2026-11-24 at 14.38.49.png",
+      "Screenshot 2026-11-24 at 14.39.13.png",
+      "Screenshot 2026-11-24 at 14.39.17.png",
+      "Screenshot 2026-11-24 at 14.39.23.png",
+      "Screenshot 2026-11-24 at 14.39.31.png",
+      "Screenshot 2026-11-24 at 14.39.38.png",
+      "Screenshot 2026-11-24 at 14.39.45.png",
+      "Screenshot 2026-11-24 at 14.39.52.png",
+      "Screenshot 2026-11-24 at 14.40.00.png",
+      "Screenshot 2026-11-24 at 14.40.05.png",
+      "Screenshot 2026-11-24 at 14.40.16.png",
+      "Screenshot 2026-11-24 at 14.40.38.png",
+    ];
+    let carIdx = 0;
+    const carImg     = document.getElementById("car-img");
+    const carCounter = document.getElementById("car-counter");
+    const carPrev    = document.getElementById("car-prev");
+    const carNext    = document.getElementById("car-next");
+
+    function carShow() {
+      carImg.src = CAR_PHOTOS[carIdx];
+      carCounter.textContent = `${carIdx + 1} / ${CAR_PHOTOS.length}`;
+    }
+    carPrev.addEventListener("click", e => {
+      e.stopPropagation();
+      carIdx = (carIdx - 1 + CAR_PHOTOS.length) % CAR_PHOTOS.length;
+      carShow();
+    });
+    carNext.addEventListener("click", e => {
+      e.stopPropagation();
+      carIdx = (carIdx + 1) % CAR_PHOTOS.length;
+      carShow();
+    });
+    carShow();
+
+
+    /* ══════════════════════════════════════════
+       PHYSICS
+    ══════════════════════════════════════════ */
+    const GRAVITY   = 0.09;
+    const FRICTION  = 0.999;
+    const SPEED_MIN = 1.8;
+    const SPEED_MAX = 14.0;
+
+    const ball = document.getElementById("ball");
+    const sz   = () => ball.offsetWidth;
+
+    let x, y, vx, vy, paused = false;
+
+    function randSpeed() {
+      return SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN);
+    }
+
+    function init() {
+      const s = sz();
+      x  = Math.random() * (window.innerWidth  - s);
+      y  = Math.random() * (window.innerHeight - s);
+      vx = randSpeed() * (Math.random() < 0.5 ? 1 : -1);
+      vy = randSpeed() * (Math.random() < 0.5 ? 1 : -1);
+      place();
+    }
+
+    function place() {
+      ball.style.left = x + "px";
+      ball.style.top  = y  + "px";
+    }
+
+    function step() {
+      if (!paused) {
+        const s = sz();
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+
+        vy += GRAVITY;
+        vx *= FRICTION;
+        vy *= FRICTION;
+
+        x += vx;
+        y += vy;
+
+        if (x <= 0) {
+          x = 0; playBounce(Math.abs(vx)); vx = randSpeed();
+        } else if (x + s >= W) {
+          x = W - s; playBounce(Math.abs(vx)); vx = -randSpeed();
+        }
+        if (y <= 0) {
+          y = 0; playBounce(Math.abs(vy)); vy = randSpeed();
+        } else if (y + s >= H) {
+          y = H - s; playBounce(Math.abs(vy)); vy = -randSpeed();
+        }
+
+        place();
+      }
+      requestAnimationFrame(step);
+    }
+
+    ball.addEventListener("mouseenter", () => { paused = true;  });
+    ball.addEventListener("mouseleave", () => { paused = false; });
+
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!prefersReduced) { init(); requestAnimationFrame(step); }
+
+    window.addEventListener("resize", () => {
+      const s = sz();
+      x = Math.min(x, window.innerWidth  - s);
+      y = Math.min(y, window.innerHeight - s);
+    });
+
+
+    /* ══════════════════════════════════════════
+       AUDIO
+       - Unlocks on first click / tap anywhere
+       - Bash on most hits; ethereal bell on hits
+         4, 9, 13, 18, 22, 27 … (alternating +5/+4)
+       - Bell: C5 D5 E5 G5 A5, small melodic steps,
+         soft attack, long decay, subtle reverb
+       - Mute button toggles
+    ══════════════════════════════════════════ */
+    let ctx          = null;
+    let masterGain   = null;
+    let reverb       = null;
+    let muted        = false;
+    const whisperFiles = [
+      "freesound_community-four_voices_whispering-6943.mp3",
+      "misfit_melomaniac-hello-whisper-533246.mp3",
+    ];
+    const whisperBuffers = [];   /* loaded once audio context is ready */
+
+    function loadWhispers() {
+      whisperFiles.forEach((file, i) => {
+        fetch(file)
+          .then(r => r.arrayBuffer())
+          .then(ab => ctx.decodeAudioData(ab))
+          .then(buf => { whisperBuffers[i] = buf; })
+          .catch(() => {});   /* silently skip if file missing */
+      });
+    }
+    let bounceCount  = 0;
+    let lastBellIdx  = -1;   /* melodic step tracking */
+    let seqDone      = false;
+    let nextSpecial  = 0;    /* next special hit in random phase */
+    let whisperCount = 0;    /* stop whispers after 2 plays     */
+
+    const soundBtn = document.getElementById("sound-btn");
+    const iconOn   = document.getElementById("icon-on");
+    const iconOff  = document.getElementById("icon-off");
+
+    /* C4 D4 E4 G4 A4 — one octave lower, less shrill */
+    const BELL_NOTES = [261.63, 293.66, 329.63, 392.00, 440.00];
+
+    function makeReverb(duration, decay) {
+      const len     = ctx.sampleRate * duration;
+      const impulse = ctx.createBuffer(2, len, ctx.sampleRate);
+      for (let c = 0; c < 2; c++) {
+        const ch = impulse.getChannelData(c);
+        for (let i = 0; i < len; i++) {
+          const er = (i / ctx.sampleRate) < 0.03 ? 1.3 : 1.0;
+          ch[i] = (Math.random() * 2 - 1) * er * Math.pow(1 - i / len, decay);
+        }
+      }
+      const conv = ctx.createConvolver();
+      conv.buffer = impulse;
+      return conv;
+    }
+
+    function setupAudio() {
+      if (ctx) { ctx.resume(); return; }
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -12;
+      comp.knee.value      = 6;
+      comp.ratio.value     = 3;
+      comp.attack.value    = 0.001;
+      comp.release.value   = 0.15;
+      comp.connect(ctx.destination);
+
+      masterGain = ctx.createGain();
+      masterGain.gain.value = 2.2;
+      masterGain.connect(comp);
+
+      reverb = makeReverb(5.0, 1.4);
+      const reverbOut = ctx.createGain();
+      reverbOut.gain.value = 0.55;
+      reverb.connect(reverbOut);
+      reverbOut.connect(masterGain);
+
+      ctx.resume();
+      loadWhispers();
+    }
+
+    /* Unlock on first click or tap anywhere */
+    ["click", "touchstart"].forEach(e =>
+      document.addEventListener(e, setupAudio, { passive: true })
+    );
+
+    /* ── Bash: thud + click + noise ── */
+    function playBash(speed) {
+      if (!ctx || ctx.state !== "running") return;
+      const t    = ctx.currentTime;
+      const norm = Math.min(speed / SPEED_MAX, 1);
+
+      const thudF = 55 + norm * 80;
+      const thud  = ctx.createOscillator();
+      thud.type   = "sine";
+      thud.frequency.setValueAtTime(thudF * 1.6, t);
+      thud.frequency.exponentialRampToValueAtTime(thudF * 0.4, t + 0.18);
+      const thudEnv = ctx.createGain();
+      thudEnv.gain.setValueAtTime(0.9 + norm * 0.5, t);
+      thudEnv.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+      thud.connect(thudEnv); thudEnv.connect(masterGain); thudEnv.connect(reverb);
+      thud.start(t); thud.stop(t + 0.25);
+
+      const click = ctx.createOscillator();
+      click.type  = "square";
+      click.frequency.value = 800 + norm * 600;
+      const clickEnv = ctx.createGain();
+      clickEnv.gain.setValueAtTime(0.6 + norm * 0.4, t);
+      clickEnv.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+      click.connect(clickEnv); clickEnv.connect(masterGain);
+      click.start(t); click.stop(t + 0.05);
+
+      const nBuf  = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.08), ctx.sampleRate);
+      const nData = nBuf.getChannelData(0);
+      for (let i = 0; i < nData.length; i++) nData[i] = Math.random() * 2 - 1;
+      const noise = ctx.createBufferSource();
+      noise.buffer = nBuf;
+      const nHP  = ctx.createBiquadFilter();
+      nHP.type   = "highpass"; nHP.frequency.value = 1200;
+      const nEnv = ctx.createGain();
+      nEnv.gain.setValueAtTime(0.7 + norm * 0.4, t);
+      nEnv.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+      noise.connect(nHP); nHP.connect(nEnv); nEnv.connect(masterGain);
+      noise.start(t);
+    }
+
+    /* Pick the next bell note — favour small melodic steps */
+    function pickBellNote() {
+      if (lastBellIdx === -1) {
+        lastBellIdx = Math.floor(Math.random() * BELL_NOTES.length);
+      } else {
+        /* weighted toward ±1 step, occasionally ±2, never jump > 2 */
+        const candidates = [-2,-1,-1,0,1,1,2]
+          .map(d => lastBellIdx + d)
+          .filter(i => i >= 0 && i < BELL_NOTES.length);
+        lastBellIdx = candidates[Math.floor(Math.random() * candidates.length)];
+      }
+      return BELL_NOTES[lastBellIdx];
+    }
+
+    /* ── Bell: inharmonic partials, soft attack, long ethereal decay ── */
+    function playBell() {
+      if (!ctx || ctx.state !== "running") return;
+      const t    = ctx.currentTime;
+      const freq = pickBellNote();
+
+      /* low-pass filter to strip harshness before it hits the output */
+      const lp = ctx.createBiquadFilter();
+      lp.type            = "lowpass";
+      lp.frequency.value = 1200;
+      lp.Q.value         = 0.5;
+      lp.connect(masterGain);
+      lp.connect(reverb);
+
+      /* only fundamental + one soft overtone — drop the shrill 5× partial */
+      [
+        { ratio: 1.000, vol: 0.04, dec: 5.0 },
+        { ratio: 2.756, vol: 0.015, dec: 2.8 },
+      ].forEach(({ ratio, vol, dec }) => {
+        const osc = ctx.createOscillator();
+        osc.type  = "sine";
+        osc.frequency.value = freq * ratio;
+
+        /* very gentle vibrato */
+        const vib     = ctx.createOscillator();
+        vib.type      = "sine";
+        vib.frequency.value = 3.5;
+        const vibGain = ctx.createGain();
+        vibGain.gain.value  = freq * ratio * 0.002;
+        vib.connect(vibGain); vibGain.connect(osc.frequency);
+
+        const env = ctx.createGain();
+        env.gain.setValueAtTime(0, t);
+        env.gain.linearRampToValueAtTime(vol, t + 0.06);   /* 60ms soft attack */
+        env.gain.exponentialRampToValueAtTime(0.0001, t + dec);
+
+        osc.connect(env);
+        env.connect(lp);   /* everything routed through the low-pass */
+
+        osc.start(t); osc.stop(t + dec + 0.1);
+        vib.start(t); vib.stop(t + dec + 0.1);
+      });
+    }
+
+    /* ── Whispers: helloOnly=true → hello file only; false → both files ── */
+    function playWhispers(helloOnly) {
+      if (!ctx || ctx.state !== "running") return;
+      const t = ctx.currentTime;
+
+      /* index 1 = hello file (once only), index 0 = crowd whispers file */
+      const toPlay = helloOnly ? [1] : [0];
+
+      toPlay.forEach(i => {
+        const buf = whisperBuffers[i];
+        if (!buf) return;
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.playbackRate.value = i === 0 ? 1.0 : 1.02;
+
+        const env = ctx.createGain();
+        const dur     = buf.duration / src.playbackRate.value;
+        const fadeIn  = 1.0;
+        const fadeOut = 3.0;
+        env.gain.setValueAtTime(0, t);
+        const vol    = helloOnly ? 0.35 : 0.13;   /* crowd whispers softer */
+        const offset = i === 0 ? 1.5 : 0;         /* skip lag on crowd file only */
+        env.gain.setValueAtTime(0, t);
+        env.gain.linearRampToValueAtTime(vol, t + fadeIn);
+        env.gain.setValueAtTime(vol, t + dur - fadeOut);
+        env.gain.linearRampToValueAtTime(0, t + dur);
+
+        src.connect(env);
+        env.connect(masterGain);
+        src.start(t, offset);
+      });
+    }
+
+    /* ── Dispatch: 3=hello · 5=chime · 7=whispers · then random ── */
+    function playBounce(speed) {
+      if (!ctx || muted || ctx.state !== "running") return;
+      bounceCount++;
+
+      if (!seqDone) {
+        if      (bounceCount === 3) { playBash(speed); }
+        else if (bounceCount === 5) { playBell(); }
+        else if (bounceCount === 7) {
+          whisperCount++;
+          playWhispers(false);
+          seqDone     = true;
+          nextSpecial = bounceCount + 4 + Math.floor(Math.random() * 5);
+        } else { playBash(speed); }
+      } else {
+        if (bounceCount === nextSpecial) {
+          nextSpecial = bounceCount + 4 + Math.floor(Math.random() * 5);
+          /* after 2 whisper plays, only chime from here on */
+          whisperCount < 2 && Math.random() < 0.5
+            ? (whisperCount++, playWhispers(false))
+            : playBell();
+        } else {
+          playBash(speed);
+        }
+      }
+    }
+
+    /* ── Mute button ── */
+    soundBtn.addEventListener("click", () => {
+      const alreadyRunning = !!ctx;
+      setupAudio();
+      if (alreadyRunning) {
+        /* only toggle if audio was already going — first click just starts it */
+        muted = !muted;
+        masterGain.gain.setTargetAtTime(muted ? 0 : 2.2, ctx.currentTime, 0.15);
+        iconOn.style.display  = muted ? "none" : "";
+        iconOff.style.display = muted ? ""     : "none";
+        soundBtn.setAttribute("aria-label", muted ? "Unmute" : "Mute");
+      }
+    });
+  </script>
+</body>
+</html>
