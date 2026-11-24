@@ -857,7 +857,7 @@
       const env = ctx.createGain();
       const fadeIn  = 0.6;
       const fadeOut = 1.2;
-      const vol     = 0.03;
+      const vol     = 0.05;
       env.gain.setValueAtTime(0, t);
       env.gain.linearRampToValueAtTime(vol, t + fadeIn);
       env.gain.setValueAtTime(vol, t + dur - fadeOut);
