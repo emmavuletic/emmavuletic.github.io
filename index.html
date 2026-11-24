@@ -147,7 +147,7 @@
 
     /* ── Outer card: clips the two sliding panels ── */
     #about-card {
-      max-width: 760px;
+      max-width: 860px;
       width: 90%;
       max-height: 88vh;
       overflow: hidden;
@@ -264,7 +264,8 @@
       flex: 1;
       aspect-ratio: 16/9;
       background: #000;
-      border: 1px solid rgba(255,255,255,0.10);
+      border: 2px solid rgba(255,255,255,0.85);
+      border-radius: 10px;
       overflow: hidden;
       position: relative;
     }
@@ -342,8 +343,8 @@
           <div class="work-row">
             <p>
               I find the human stories behind complex ideas and turn them into content that builds understanding, earns trust
-              and helps organisations grow. I've written for <em>The Sydney Morning Herald</em>, <em>The Age</em>, MSN,
-              Forbes, Housefolk, Fast Company and <em>The Independent UK</em>, covering culture, work, money, travel and
+              and helps organisations grow. I've written for The Sydney Morning Herald, The Age, MSN,
+              Forbes, Housefolk, Fast Company and The Independent UK, covering culture, work, money, travel and
               technology, and I've developed film and theatre work with BAFTA- and Oscar-nominated teams.
             </p>
             <div id="work-ball" role="button" tabindex="0" aria-label="See my work">
@@ -478,7 +479,7 @@
      role="button"
      tabindex="0"
      aria-label="Open about"
-  ></div>
+  ><span id="ball-text" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Libre Baskerville',serif;font-size:clamp(13px,2.2vmin,18px);color:rgba(255,255,255,0.45);letter-spacing:0.08em;pointer-events:none;user-select:none;">ev</span></div>
 
   <button id="sound-btn" aria-label="Toggle sound" title="Toggle sound">
     <svg id="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -587,6 +588,8 @@
     const sz   = () => ball.offsetWidth;
 
     let x, y, vx, vy, paused = false;
+    let ballRot = 0;
+    const ballText = document.getElementById("ball-text");
 
     function randSpeed() {
       return SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN);
@@ -630,6 +633,8 @@
           y = H - s; playBounce(Math.abs(vy)); vy = -randSpeed();
         }
 
+        ballRot += vx / (sz() / 2) * (180 / Math.PI);
+        ballText.style.transform = `rotate(${ballRot}deg)`;
         place();
       }
       requestAnimationFrame(step);
@@ -662,8 +667,7 @@
     let reverb       = null;
     let muted        = false;
     const whisperFiles = [
-      "freesound_community-four_voices_whispering-6943.mp3",
-      "misfit_melomaniac-hello-whisper-533246.mp3",
+      "djartmusic-radio-tuning-1-298746.mp3",
     ];
     const whisperBuffers = [];   /* loaded once audio context is ready */
 
@@ -679,8 +683,9 @@
     let bounceCount  = 0;
     let lastBellIdx  = -1;   /* melodic step tracking */
     let seqDone      = false;
-    let nextSpecial  = 0;    /* next special hit in random phase */
-    let whisperCount = 0;    /* stop whispers after 2 plays     */
+    let nextSpecial  = 0;
+    let nextIsChime  = true;
+    let radioPlays   = 0;
 
     const soundBtn = document.getElementById("sound-btn");
     const iconOn   = document.getElementById("icon-on");
@@ -834,36 +839,34 @@
     }
 
     /* ── Whispers: helloOnly=true → hello file only; false → both files ── */
-    function playWhispers(helloOnly) {
+    function playWhispers() {
       if (!ctx || ctx.state !== "running") return;
       const t = ctx.currentTime;
 
-      /* index 1 = hello file (once only), index 0 = crowd whispers file */
-      const toPlay = helloOnly ? [1] : [0];
+      const buf = whisperBuffers[0];
+      if (!buf) return;
 
-      toPlay.forEach(i => {
-        const buf = whisperBuffers[i];
-        if (!buf) return;
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        src.playbackRate.value = i === 0 ? 1.0 : 1.02;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
 
-        const env = ctx.createGain();
-        const dur     = buf.duration / src.playbackRate.value;
-        const fadeIn  = 1.0;
-        const fadeOut = 3.0;
-        env.gain.setValueAtTime(0, t);
-        const vol    = helloOnly ? 0.35 : 0.13;   /* crowd whispers softer */
-        const offset = i === 0 ? 1.5 : 0;         /* skip lag on crowd file only */
-        env.gain.setValueAtTime(0, t);
-        env.gain.linearRampToValueAtTime(vol, t + fadeIn);
-        env.gain.setValueAtTime(vol, t + dur - fadeOut);
-        env.gain.linearRampToValueAtTime(0, t + dur);
+      radioPlays++;
+      const offsets    = [2.0, 4.0, 6.0, 8.0, 10.0];
+      const fileOffset = Math.min(offsets[Math.min(radioPlays - 1, offsets.length - 1)], buf.duration - 3.1);
+      const dur        = Math.min(3.0, buf.duration - fileOffset);
 
-        src.connect(env);
-        env.connect(masterGain);
-        src.start(t, offset);
-      });
+      const env = ctx.createGain();
+      const fadeIn  = 0.6;
+      const fadeOut = 1.2;
+      const vol     = 0.03;
+      env.gain.setValueAtTime(0, t);
+      env.gain.linearRampToValueAtTime(vol, t + fadeIn);
+      env.gain.setValueAtTime(vol, t + dur - fadeOut);
+      env.gain.linearRampToValueAtTime(0, t + dur);
+
+      src.connect(env);
+      env.connect(masterGain);
+      src.start(t, fileOffset);
+      src.stop(t + dur);
     }
 
     /* ── Dispatch: 3=hello · 5=chime · 7=whispers · then random ── */
@@ -872,21 +875,14 @@
       bounceCount++;
 
       if (!seqDone) {
-        if      (bounceCount === 3) { playBash(speed); }
-        else if (bounceCount === 5) { playBell(); }
-        else if (bounceCount === 7) {
-          whisperCount++;
-          playWhispers(false);
-          seqDone     = true;
-          nextSpecial = bounceCount + 4 + Math.floor(Math.random() * 5);
-        } else { playBash(speed); }
+        if      (bounceCount === 3) { playBell(); }
+        else if (bounceCount === 5) { playWhispers(); seqDone = true; nextSpecial = bounceCount + 3 + Math.floor(Math.random() * 3); nextIsChime = true; }
+        else                        { playBash(speed); }
       } else {
         if (bounceCount === nextSpecial) {
-          nextSpecial = bounceCount + 4 + Math.floor(Math.random() * 5);
-          /* after 2 whisper plays, only chime from here on */
-          whisperCount < 2 && Math.random() < 0.5
-            ? (whisperCount++, playWhispers(false))
-            : playBell();
+          nextSpecial = bounceCount + 3 + Math.floor(Math.random() * 3);
+          if (nextIsChime) { playBell();      nextIsChime = false; }
+          else             { playWhispers();  nextIsChime = true;  }
         } else {
           playBash(speed);
         }
