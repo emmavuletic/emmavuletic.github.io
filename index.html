@@ -179,6 +179,7 @@
       box-sizing: border-box;
     }
     .about-panel::-webkit-scrollbar { display: none; }
+    .about-panel { -webkit-overflow-scrolling: touch; }
 
     /* ── Typography ── */
     .about-panel p { margin-bottom: 18px; color: rgba(255,255,255,0.72); }
@@ -303,18 +304,17 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      #ball {
-        position: fixed !important;
-        top: 50% !important; left: 50% !important;
-        transform: translate(-50%, -50%) !important;
-        animation: none !important;
-      }
+      #ball { animation: none !important; }
       #about-overlay, #about-card, #about-panels { transition: none !important; }
     }
 
-    @media (max-width: 500px) {
-      .about-panel { padding: 44px 24px 48px; font-size: 14px; }
-      .car-btn { width: 28px; height: 28px; font-size: 13px; }
+    @media (max-width: 600px) {
+      #about-card { width: 95%; }
+      .about-panel { padding: 48px 20px 44px; font-size: 14px; line-height: 1.75; }
+      .work-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+      #work-ball { width: 70px; height: 85px; }
+      .car-btn { width: 32px; height: 32px; font-size: 14px; }
+      #about-close { top: 68px; right: 16px; font-size: 18px; }
     }
   </style>
 </head>
@@ -583,10 +583,13 @@
       return SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN);
     }
 
+    const vw = () => (window.visualViewport ? window.visualViewport.width  : window.innerWidth);
+    const vh = () => (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+
     function init() {
       const s = sz();
-      x  = Math.random() * (window.innerWidth  - s);
-      y  = Math.random() * (window.innerHeight - s);
+      x  = Math.random() * (vw() - s);
+      y  = Math.random() * (vh() - s);
       vx = randSpeed() * (Math.random() < 0.5 ? 1 : -1);
       vy = randSpeed() * (Math.random() < 0.5 ? 1 : -1);
       place();
@@ -600,8 +603,8 @@
     function step() {
       if (!paused) {
         const s = sz();
-        const W = window.innerWidth;
-        const H = window.innerHeight;
+        const W = vw();
+        const H = vh();
 
         vy += GRAVITY;
         vx *= FRICTION;
@@ -628,17 +631,21 @@
       requestAnimationFrame(step);
     }
 
-    ball.addEventListener("mouseenter", () => { paused = true;  });
-    ball.addEventListener("mouseleave", () => { paused = false; });
+    ball.addEventListener("mouseenter",  () => { paused = true;  });
+    ball.addEventListener("mouseleave",  () => { paused = false; });
+    ball.addEventListener("touchstart",  () => { paused = true;  }, { passive: true });
+    ball.addEventListener("touchend",    () => { paused = false; });
+    ball.addEventListener("touchcancel", () => { paused = false; });
 
-    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!prefersReduced) { init(); requestAnimationFrame(step); }
+    requestAnimationFrame(() => { init(); requestAnimationFrame(step); });
 
-    window.addEventListener("resize", () => {
+    function clampBall() {
       const s = sz();
-      x = Math.min(x, window.innerWidth  - s);
-      y = Math.min(y, window.innerHeight - s);
-    });
+      x = Math.min(x, vw() - s);
+      y = Math.min(y, vh() - s);
+    }
+    window.addEventListener("resize", clampBall);
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", clampBall);
 
 
     /* ══════════════════════════════════════════
@@ -730,7 +737,8 @@
 
     /* ── Bash: thud + click + noise ── */
     function playBash(speed) {
-      if (!ctx || ctx.state !== "running") return;
+      if (!ctx) return;
+      ctx.resume();
       const t    = ctx.currentTime;
       const norm = Math.min(speed / SPEED_MAX, 1);
 
@@ -784,7 +792,8 @@
 
     /* ── Bell: inharmonic partials, soft attack, long ethereal decay ── */
     function playBell() {
-      if (!ctx || ctx.state !== "running") return;
+      if (!ctx) return;
+      ctx.resume();
       const t    = ctx.currentTime;
       const freq = pickBellNote();
 
@@ -828,7 +837,8 @@
 
     /* ── Whispers: helloOnly=true → hello file only; false → both files ── */
     function playWhispers() {
-      if (!ctx || ctx.state !== "running") return;
+      if (!ctx) return;
+      ctx.resume();
       const t = ctx.currentTime;
 
       const buf = whisperBuffers[0];
@@ -859,7 +869,7 @@
 
     /* ── Dispatch: 3=hello · 5=chime · 7=whispers · then random ── */
     function playBounce(speed) {
-      if (!ctx || muted || ctx.state !== "running") return;
+      if (!ctx || muted) return;
       bounceCount++;
 
       if (!seqDone) {
